@@ -1,7 +1,9 @@
 services:
   notes-api:
-    build: .
-    # Or, once published: image: ghcr.io/<you>/notes-api:latest
+    image: ajvcorreia/notes-api:latest
+    # Or build locally instead of pulling: comment out `image:` above and
+    # uncomment the line below.
+    # build: .
     container_name: notes-api
     environment:
       # Must match your Joplin Server's configured APP_BASE_URL exactly -

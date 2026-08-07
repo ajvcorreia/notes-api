@@ -43,10 +43,15 @@ below).
 
 ## Deploying
 
+Pull the published image:
+
 ```bash
 cp .env.example .env   # fill in real values
-docker compose up -d --build
+docker compose up -d   # pulls ajvcorreia/notes-api:latest
 ```
+
+Or build it yourself - comment out `image:` and uncomment `build: .` in
+`compose.yaml`, then `docker compose up -d --build`.
 
 `JOPLIN_BASE_URL` must exactly match your Joplin Server's configured
 `APP_BASE_URL` - Joplin Server rejects requests whose Origin doesn't match
@@ -105,6 +110,22 @@ curl -X POST http://localhost:8000/notes/<note id>/attachments \
 ```
 
 Interactive docs at `/docs` once the service is running.
+
+## Publishing (Docker Hub)
+
+`.github/workflows/docker-publish.yml` builds and pushes
+[`ajvcorreia/notes-api`](https://hub.docker.com/r/ajvcorreia/notes-api)
+(linux/amd64 + linux/arm64) automatically:
+
+- every push to `main` updates the `latest` tag
+- pushing a tag like `v1.2.3` also publishes `1.2.3` and `1.2` tags
+
+It needs two repository secrets under **Settings > Secrets and variables >
+Actions**:
+
+- `DOCKERHUB_USERNAME` - your Docker Hub username
+- `DOCKERHUB_TOKEN` - a Docker Hub [access token](https://hub.docker.com/settings/security)
+  (Account Settings > Security > New Access Token), **not** your password
 
 ## Limitations
 
