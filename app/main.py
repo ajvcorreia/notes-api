@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 
 from . import notes_service
 from .config import settings
@@ -36,9 +36,13 @@ async def health() -> dict:
 
 
 @app.get("/notes", response_model=list[NoteSummary], dependencies=[Depends(require_api_key)])
-async def list_notes(parent_id: str | None = None) -> list[NoteSummary]:
+async def list_notes(
+    parent_id: str | None = None,
+    limit: int | None = Query(None, ge=1),
+    offset: int = Query(0, ge=0),
+) -> list[NoteSummary]:
     try:
-        return await notes_service.list_notes(parent_id=parent_id)
+        return await notes_service.list_notes(parent_id=parent_id, limit=limit, offset=offset)
     except JoplinError as exc:
         _handle_joplin_error(exc)
 

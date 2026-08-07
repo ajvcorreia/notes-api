@@ -184,20 +184,60 @@ async def _fetch_all_fields() -> list[dict[str, str]]:
     return [fields for fields in results if fields is not None]
 
 
-async def list_notes(parent_id: str | None = None) -> list[NoteSummary]:
+async def list_notes(
+    parent_id: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[NoteSummary]:
     """Lists notes without their body - Joplin Server has no metadata-only
     listing endpoint, so every note's content still has to be fetched and
     parsed to know its title/type/parent_id, but the (often large) body
-    text is dropped before returning. Use get_note() for full content."""
-    all_fields = await _fetch_all_fields()
-    notes = [
-        _note_summary_from_fields(fields)
-        for fields in all_fields
-        if fields.get("type_") == str(TYPE_NOTE)
-    ]
-    if parent_id is not None:
-        notes = [note for note in notes if note.parent_id == parent_id]
-    return notes
+    text is dropped before returning. Use get_note() for full content.
+
+    When `limit` is given, stops fetching further pages of items from
+    Joplin as soon as enough matches have been found, rather than always
+    walking the entire item list - this is the only lever available to cut
+    latency, since content still has to be fetched per-item to know if it
+    even matches (type_, parent_id).
+    """
+    target = None if limit is None else offset + limit
+    semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
+
+    async def fetch(item_id: str) -> dict[str, str] | None:
+        async with semaphore:
+            try:
+                return await _get_fields(item_id)
+            except JoplinNotFound:
+                return None
+
+    matched: list[dict[str, str]] = []
+    cursor: str | None = None
+    while True:
+        page = await joplin_client.list_root_children(cursor=cursor)
+        ids = [
+            entry["name"][: -len(".md")]
+            for entry in page["items"]
+            if entry["name"].endswith(".md")
+        ]
+        results = await asyncio.gather(*(fetch(item_id) for item_id in ids))
+        for fields in results:
+            if fields is None or fields.get("type_") != str(TYPE_NOTE):
+                continue
+            if parent_id is not None and fields.get("parent_id", "") != parent_id:
+                continue
+            matched.append(fields)
+
+        if target is not None and len(matched) >= target:
+            break
+        if not page.get("has_more"):
+            break
+        cursor = page.get("cursor")
+
+    if limit is not None:
+        matched = matched[offset : offset + limit]
+    elif offset:
+        matched = matched[offset:]
+    return [_note_summary_from_fields(fields) for fields in matched]
 
 
 async def attach_file(note_id: str, filename: str, mime: str, content: bytes) -> Note:

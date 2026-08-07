@@ -90,7 +90,7 @@ All routes except `/health` require `X-API-Key: <API_KEY>`.
 
 | Method | Path                      | Description                                      |
 |--------|---------------------------|---------------------------------------------------|
-| GET    | `/notes`                  | List notes, **without body** (`?parent_id=` to filter) |
+| GET    | `/notes`                  | List notes, **without body** (`?parent_id=`, `?limit=`, `?offset=`) |
 | GET    | `/notes/{id}`              | Get one note, including body                       |
 | POST   | `/notes`                    | Create a note                                       |
 | PUT    | `/notes/{id}`              | Update a note (partial)                            |
@@ -129,12 +129,13 @@ Actions**:
 
 ## Limitations
 
-- **`GET /notes` is O(n) in your total note count.** Joplin Server has no
-  metadata-only listing endpoint - every note's raw content still has to be
-  downloaded and parsed to know its title/type/parent_id, even though the
-  response now omits `body`. On a library with thousands of notes this can
-  still take several seconds; it just no longer also ships megabytes of
-  body text in the response.
+- **`GET /notes` is O(n) in your total note count without `limit`.** Joplin
+  Server has no metadata-only listing endpoint - every note's raw content
+  still has to be downloaded and parsed to know its title/type/parent_id.
+  Passing `limit` stops fetching further pages once enough matches are
+  found, which does cut latency for small limits; without it (or with a
+  restrictive `parent_id` matching few notes late in the list) it still
+  walks the whole library.
 - **End-to-end encryption is not supported.** If any client syncing to
   this Joplin Server account enables E2EE, note bodies become encrypted
   blobs that `notes-api` cannot read or write without the encryption
