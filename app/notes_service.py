@@ -4,7 +4,7 @@ import asyncio
 import uuid
 
 from .joplin_client import JoplinNotFound, joplin_client
-from .models import Note, NoteCreate, NoteUpdate, Notebook, NotebookCreate
+from .models import Note, NoteCreate, NoteSummary, NoteUpdate, Notebook, NotebookCreate
 from .note_format import (
     TYPE_FOLDER,
     TYPE_NOTE,
@@ -27,6 +27,18 @@ def _note_from_fields(fields: dict[str, str]) -> Note:
         parent_id=fields.get("parent_id", ""),
         title=fields.get("title", ""),
         body=fields.get("body", ""),
+        is_todo=fields.get("is_todo") == "1",
+        todo_completed=fields.get("todo_completed", "0") not in ("0", ""),
+        created_time=fields.get("created_time"),
+        updated_time=fields.get("updated_time"),
+    )
+
+
+def _note_summary_from_fields(fields: dict[str, str]) -> NoteSummary:
+    return NoteSummary(
+        id=fields["id"],
+        parent_id=fields.get("parent_id", ""),
+        title=fields.get("title", ""),
         is_todo=fields.get("is_todo") == "1",
         todo_completed=fields.get("todo_completed", "0") not in ("0", ""),
         created_time=fields.get("created_time"),
@@ -172,10 +184,14 @@ async def _fetch_all_fields() -> list[dict[str, str]]:
     return [fields for fields in results if fields is not None]
 
 
-async def list_notes(parent_id: str | None = None) -> list[Note]:
+async def list_notes(parent_id: str | None = None) -> list[NoteSummary]:
+    """Lists notes without their body - Joplin Server has no metadata-only
+    listing endpoint, so every note's content still has to be fetched and
+    parsed to know its title/type/parent_id, but the (often large) body
+    text is dropped before returning. Use get_note() for full content."""
     all_fields = await _fetch_all_fields()
     notes = [
-        _note_from_fields(fields)
+        _note_summary_from_fields(fields)
         for fields in all_fields
         if fields.get("type_") == str(TYPE_NOTE)
     ]

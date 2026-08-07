@@ -14,6 +14,19 @@ class Note(BaseModel):
     updated_time: str | None = None
 
 
+class NoteSummary(BaseModel):
+    """Like Note but without `body` - used for listing, where returning every
+    note's full content is slow and produces multi-megabyte responses."""
+
+    id: str
+    parent_id: str = ""
+    title: str
+    is_todo: bool = False
+    todo_completed: bool = False
+    created_time: str | None = None
+    updated_time: str | None = None
+
+
 class NoteCreate(BaseModel):
     title: str
     body: str = ""

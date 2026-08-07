@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
 from . import notes_service
 from .config import settings
 from .joplin_client import JoplinError, JoplinNotFound, joplin_client
-from .models import Note, NoteCreate, NoteUpdate, Notebook, NotebookCreate
+from .models import Note, NoteCreate, NoteSummary, NoteUpdate, Notebook, NotebookCreate
 
 
 @asynccontextmanager
@@ -35,8 +35,8 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-@app.get("/notes", response_model=list[Note], dependencies=[Depends(require_api_key)])
-async def list_notes(parent_id: str | None = None) -> list[Note]:
+@app.get("/notes", response_model=list[NoteSummary], dependencies=[Depends(require_api_key)])
+async def list_notes(parent_id: str | None = None) -> list[NoteSummary]:
     try:
         return await notes_service.list_notes(parent_id=parent_id)
     except JoplinError as exc:
