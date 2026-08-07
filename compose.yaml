@@ -1,0 +1,20 @@
+services:
+  notes-api:
+    build: .
+    # Or, once published: image: ghcr.io/<you>/notes-api:latest
+    container_name: notes-api
+    environment:
+      # Must match your Joplin Server's configured APP_BASE_URL exactly -
+      # Joplin Server rejects requests whose Origin doesn't match it. If
+      # notes-api and Joplin Server run in the same docker compose project,
+      # putting them on a shared network and using the Joplin service's
+      # container name here typically still fails this check for that
+      # reason - point this at the same base URL your other Joplin clients
+      # use instead.
+      JOPLIN_BASE_URL: ${JOPLIN_BASE_URL}
+      JOPLIN_EMAIL: ${JOPLIN_EMAIL}
+      JOPLIN_PASSWORD: ${JOPLIN_PASSWORD}
+      API_KEY: ${API_KEY}
+    ports:
+      - "${NOTES_API_PORT:-8000}:8000"
+    restart: on-failure:5
