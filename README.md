@@ -33,6 +33,8 @@ instead of (or alongside) this.
 - File attachments: `POST /notes/{id}/attachments` uploads a file as a
   Joplin resource and links it into the note body
 - Single `X-API-Key` header for auth
+- Built-in usage dashboard at `/stats` - request volume, error rate, latency,
+  top endpoints and recent request log
 - Ships as a Docker image; `docker compose up` and it's running
 
 ## Requirements
@@ -99,6 +101,8 @@ All routes except `/health` require `X-API-Key: <API_KEY>`.
 | GET    | `/notebooks`                | List notebooks                                      |
 | POST   | `/notebooks`                | Create a notebook                                    |
 | DELETE | `/notebooks/{id}`          | Delete a notebook                                    |
+| GET    | `/stats`                    | Usage dashboard (HTML page, no API key needed to load - it prompts for one in the browser) |
+| GET    | `/stats/data`                | Usage stats as JSON (requires `X-API-Key`)          |
 
 ```bash
 curl -X POST http://localhost:8000/notes \
@@ -110,6 +114,20 @@ curl -X POST http://localhost:8000/notes/<note id>/attachments \
 ```
 
 Interactive docs at `/docs` once the service is running.
+
+## Usage dashboard
+
+Visit `http://localhost:8000/stats` for a live view of API traffic: total
+requests, error rate, average response time, requests per day, top
+endpoints, response status breakdown and a recent-request log. The page
+itself needs no auth to load, but it calls `/stats/data` with the same
+`X-API-Key` as everything else - you'll be prompted for it once, and it's
+kept in the browser's local storage from then on.
+
+Request history is stored in a SQLite file (`STATS_DB_PATH`, default
+`data/stats.db`). `compose.yaml` mounts a `notes-api-data` volume over
+`/app/data` so this survives container restarts/upgrades; without a volume
+it resets whenever the container is recreated.
 
 ## Publishing (Docker Hub)
 

@@ -19,4 +19,9 @@ services:
       API_KEY: ${API_KEY}
     ports:
       - "${NOTES_API_PORT:-8000}:8000"
+    volumes:
+      - notes-api-data:/app/data
     restart: on-failure:5
+
+volumes:
+  notes-api-data:

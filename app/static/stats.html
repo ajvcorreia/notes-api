@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>notes-api · Usage stats</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #898781;
+    --gridline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --series-1: #2a78d6;
+    --series-1-wash: rgba(42, 120, 214, 0.10);
+    --good: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #d03b3b;
+    --success-text: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted: #898781;
+      --gridline: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5;
+      --series-1-wash: rgba(57, 135, 229, 0.14);
+      --success-text: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-1-wash: rgba(57, 135, 229, 0.14);
+    --success-text: #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 24px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header.page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  header.page-head h1 { font-size: 20px; margin: 0 0 2px; }
+  header.page-head p { margin: 0; color: var(--text-secondary); font-size: 13px; }
+  .head-controls { display: flex; align-items: center; gap: 8px; }
+
+  button, .btn {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  button:hover { background: var(--gridline); }
+  button[aria-pressed="true"] { background: var(--series-1); color: #fff; border-color: transparent; }
+
+  #gate {
+    max-width: 380px;
+    margin: 64px auto;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    text-align: center;
+  }
+  #gate h2 { font-size: 16px; margin: 0 0 6px; }
+  #gate p { color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; }
+  #gate form { display: flex; gap: 8px; }
+  #gate input {
+    flex: 1;
+    font: inherit;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  #gate .error { color: var(--critical); font-size: 12px; margin-top: 10px; }
+
+  main[hidden], #gate[hidden] { display: none; }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .stat-tile {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat-tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+  .stat-tile .value { font-size: 26px; font-weight: 600; line-height: 1.1; }
+  .stat-tile .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .card-head h2 { font-size: 14px; margin: 0; }
+  .card-head .toggle { font-size: 12px; color: var(--text-secondary); background: none; border: none; text-decoration: underline; cursor: pointer; padding: 0; }
+
+  svg.chart { width: 100%; height: 220px; overflow: visible; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .axis-text { fill: var(--text-muted); font-size: 10px; }
+  .trend-area { fill: var(--series-1-wash); }
+  .trend-line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .trend-end { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; }
+  .trend-label { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
+  .crosshair { stroke: var(--baseline); stroke-width: 1; pointer-events: none; }
+  .hover-dot { fill: var(--series-1); stroke: var(--surface-1); stroke-width: 2; pointer-events: none; }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--text-primary);
+    color: var(--surface-1);
+    font-size: 12px;
+    padding: 6px 9px;
+    border-radius: 6px;
+    line-height: 1.5;
+    z-index: 20;
+    transform: translate(-50%, -110%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.08s;
+  }
+  .tooltip.show { opacity: 1; }
+  .tooltip .t-value { font-weight: 700; }
+
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.data-table th, table.data-table td {
+    text-align: left;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--gridline);
+  }
+  table.data-table th { color: var(--text-muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+  table.data-table td.num { font-variant-numeric: tabular-nums; text-align: right; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; height: 26px; }
+  .bar-label {
+    width: 230px;
+    flex: 0 0 auto;
+    font-size: 12px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+  }
+  .bar-track { flex: 1; position: relative; height: 24px; display: flex; align-items: center; }
+  .bar-fill {
+    height: 24px;
+    background: var(--series-1);
+    border-radius: 0 4px 4px 0;
+    min-width: 2px;
+  }
+  .bar-value { margin-left: 8px; font-size: 12px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+  .status-rows { display: flex; flex-direction: column; gap: 10px; }
+  .status-row { display: flex; align-items: center; gap: 10px; }
+  .status-swatch { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; }
+  .status-meta { flex: 1; }
+  .status-meta .top { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .status-track { height: 6px; border-radius: 3px; background: var(--gridline); overflow: hidden; }
+  .status-fill { height: 100%; border-radius: 3px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid var(--border);
+  }
+
+  .table-view { display: none; }
+  body.show-tables .chart-view { display: none; }
+  body.show-tables .table-view { display: block; }
+
+  .empty { color: var(--text-muted); font-size: 13px; padding: 24px 0; text-align: center; }
+
+  @media (max-width: 760px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .bar-label { width: 140px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page-head">
+    <div>
+      <h1>notes-api usage</h1>
+      <p id="subtitle">Live request stats for this API instance</p>
+    </div>
+    <div class="head-controls">
+      <button id="tableToggle" type="button" aria-pressed="false">Table view</button>
+      <button id="themeToggle" type="button">Dark mode</button>
+      <button id="refreshBtn" type="button">Refresh</button>
+    </div>
+  </header>
+
+  <section id="gate">
+    <h2>Enter your API key</h2>
+    <p>This dashboard reads <code>/stats/data</code>, which requires the same <code>X-API-Key</code> as the rest of the API. The key is stored only in this browser.</p>
+    <form id="gateForm">
+      <input id="apiKeyInput" type="password" placeholder="X-API-Key" autocomplete="off" />
+      <button type="submit">View stats</button>
+    </form>
+    <div class="error" id="gateError" hidden></div>
+  </section>
+
+  <main id="dashboard" hidden>
+    <section class="kpi-row">
+      <div class="stat-tile">
+        <div class="label">Total requests</div>
+        <div class="value" id="kpiTotal">–</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Requests today</div>
+        <div class="value" id="kpiToday">–</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Error rate</div>
+        <div class="value" id="kpiErrorRate">–</div>
+        <div class="sub" id="kpiErrorSub"></div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Avg response time</div>
+        <div class="value" id="kpiAvgMs">–</div>
+      </div>
+    </section>
+
+    <section class="charts-row">
+      <div class="card">
+        <div class="card-head"><h2>Requests per day (last 14 days)</h2></div>
+        <div class="chart-view" id="trendChart"></div>
+        <div class="table-view" id="trendTable"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Responses by status</h2></div>
+        <div class="chart-view" id="statusChart"></div>
+        <div class="table-view" id="statusTable"></div>
+      </div>
+    </section>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-head"><h2>Top endpoints</h2></div>
+      <div class="chart-view" id="endpointChart"></div>
+      <div class="table-view" id="endpointTable"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h2>Recent requests</h2></div>
+      <div id="recentTable"></div>
+    </div>
+  </main>
+</div>
+
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "notes-api-key";
+  var THEME_KEY = "notes-api-theme";
+  var REFRESH_MS = 30000;
+
+  var gate = document.getElementById("gate");
+  var gateForm = document.getElementById("gateForm");
+  var gateError = document.getElementById("gateError");
+  var apiKeyInput = document.getElementById("apiKeyInput");
+  var dashboard = document.getElementById("dashboard");
+  var tooltip = document.getElementById("tooltip");
+  var refreshTimer = null;
+
+  function showTooltip(x, y, html) {
+    tooltip.innerHTML = html;
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
+    tooltip.classList.add("show");
+  }
+  function hideTooltip() { tooltip.classList.remove("show"); }
+
+  // ---- theme ----
+  function applyTheme(theme) {
+    if (theme) document.documentElement.setAttribute("data-theme", theme);
+    else document.documentElement.removeAttribute("data-theme");
+    document.getElementById("themeToggle").textContent =
+      effectiveTheme() === "dark" ? "Light mode" : "Dark mode";
+  }
+  function effectiveTheme() {
+    var stamp = document.documentElement.getAttribute("data-theme");
+    if (stamp) return stamp;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  applyTheme(localStorage.getItem(THEME_KEY));
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    var next = effectiveTheme() === "dark" ? "light" : "dark";
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+  });
+
+  // ---- table view toggle ----
+  var tableToggle = document.getElementById("tableToggle");
+  tableToggle.addEventListener("click", function () {
+    var on = document.body.classList.toggle("show-tables");
+    tableToggle.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+
+  // ---- api key gate ----
+  function getApiKey() { return localStorage.getItem(STORAGE_KEY) || ""; }
+  function setApiKey(key) { localStorage.setItem(STORAGE_KEY, key); }
+
+  gateForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var key = apiKeyInput.value.trim();
+    if (!key) return;
+    setApiKey(key);
+    gateError.hidden = true;
+    load();
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", load);
+
+  function openGate(message) {
+    gate.hidden = false;
+    dashboard.hidden = true;
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    if (message) { gateError.textContent = message; gateError.hidden = false; }
+  }
+
+  // ---- formatting ----
+  function fmtCompact(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+    if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+    return String(n);
+  }
+  function fmtMs(ms) {
+    if (ms >= 1000) return (ms / 1000).toFixed(2) + " s";
+    return Math.round(ms) + " ms";
+  }
+  function fmtDay(day) {
+    var d = new Date(day + "T00:00:00");
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  function fmtTime(ts) {
+    return new Date(ts * 1000).toLocaleString(undefined, {
+      month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit"
+    });
+  }
+  function statusGroup(code) {
+    if (code >= 500) return { key: "5xx", color: "var(--critical)", label: "Server error" };
+    if (code >= 400) return { key: "4xx", color: "var(--warning)", label: "Client error" };
+    if (code >= 300) return { key: "3xx", color: "var(--text-muted)", label: "Redirect" };
+    return { key: "2xx", color: "var(--good)", label: "Success" };
+  }
+
+  // ---- KPIs ----
+  function renderKpis(data) {
+    document.getElementById("kpiTotal").textContent = fmtCompact(data.total_requests);
+    document.getElementById("kpiToday").textContent = fmtCompact(data.today_count);
+    var rate = data.total_requests ? (data.error_count / data.total_requests) * 100 : 0;
+    document.getElementById("kpiErrorRate").textContent = rate.toFixed(1) + "%";
+    document.getElementById("kpiErrorRate").style.color = rate > 5 ? "var(--critical)" : "";
+    document.getElementById("kpiErrorSub").textContent = data.error_count + " of " + data.total_requests + " requests";
+    document.getElementById("kpiAvgMs").textContent = fmtMs(data.avg_duration_ms);
+  }
+
+  // ---- trend chart (line) ----
+  function renderTrend(byDay) {
+    var container = document.getElementById("trendChart");
+    var tableEl = document.getElementById("trendTable");
+    container.innerHTML = "";
+    tableEl.innerHTML = "";
+
+    if (!byDay.length) {
+      container.innerHTML = '<div class="empty">No requests recorded yet</div>';
+      return;
+    }
+
+    var W = 640, H = 220, padL = 34, padR = 16, padT = 16, padB = 24;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var maxVal = Math.max.apply(null, byDay.map(function (d) { return d.count; }));
+    var niceMax = maxVal <= 4 ? 4 : Math.ceil(maxVal * 1.15);
+
+    function x(i) { return byDay.length === 1 ? padL + plotW / 2 : padL + (i / (byDay.length - 1)) * plotW; }
+    function y(v) { return padT + plotH - (v / niceMax) * plotH; }
+
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    svg.setAttribute("class", "chart");
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", "Requests per day trend line");
+
+    // gridlines + y labels
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var val = (niceMax / steps) * s;
+      var gy = y(val);
+      var line = document.createElementNS(svgNS, "line");
+      line.setAttribute("x1", padL); line.setAttribute("x2", W - padR);
+      line.setAttribute("y1", gy); line.setAttribute("y2", gy);
+      line.setAttribute("class", "gridline");
+      svg.appendChild(line);
+      var label = document.createElementNS(svgNS, "text");
+      label.setAttribute("x", padL - 6); label.setAttribute("y", gy + 3);
+      label.setAttribute("text-anchor", "end");
+      label.setAttribute("class", "axis-text");
+      label.textContent = Math.round(val);
+      svg.appendChild(label);
+    }
+
+    // x labels (sparse)
+    var xLabelEvery = Math.ceil(byDay.length / 6);
+    byDay.forEach(function (d, i) {
+      if (i % xLabelEvery !== 0 && i !== byDay.length - 1) return;
+      var t = document.createElementNS(svgNS, "text");
+      t.setAttribute("x", x(i)); t.setAttribute("y", H - 4);
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("class", "axis-text");
+      t.textContent = fmtDay(d.day);
+      svg.appendChild(t);
+    });
+
+    // area + line
+    var linePts = byDay.map(function (d, i) { return x(i) + "," + y(d.count); }).join(" ");
+    var areaPts = "M" + padL + "," + y(0) + " L" + byDay.map(function (d, i) { return x(i) + "," + y(d.count); }).join(" L") + " L" + (padL + plotW) + "," + y(0) + " Z";
+
+    var area = document.createElementNS(svgNS, "path");
+    area.setAttribute("d", areaPts);
+    area.setAttribute("class", "trend-area");
+    svg.appendChild(area);
+
+    var line2 = document.createElementNS(svgNS, "polyline");
+    line2.setAttribute("points", linePts);
+    line2.setAttribute("class", "trend-line");
+    svg.appendChild(line2);
+
+    // end marker + direct label (extreme point rule: label the endpoint)
+    var lastIdx = byDay.length - 1;
+    var endDot = document.createElementNS(svgNS, "circle");
+    endDot.setAttribute("cx", x(lastIdx)); endDot.setAttribute("cy", y(byDay[lastIdx].count));
+    endDot.setAttribute("r", 4);
+    endDot.setAttribute("class", "trend-end");
+    svg.appendChild(endDot);
+
+    var endLabel = document.createElementNS(svgNS, "text");
+    endLabel.setAttribute("x", x(lastIdx));
+    endLabel.setAttribute("y", y(byDay[lastIdx].count) - 10);
+    endLabel.setAttribute("text-anchor", "end");
+    endLabel.setAttribute("class", "trend-label");
+    endLabel.textContent = byDay[lastIdx].count;
+    svg.appendChild(endLabel);
+
+    // crosshair hit layer
+    var crosshair = document.createElementNS(svgNS, "line");
+    crosshair.setAttribute("class", "crosshair");
+    crosshair.setAttribute("y1", padT); crosshair.setAttribute("y2", padT + plotH);
+    crosshair.style.display = "none";
+    svg.appendChild(crosshair);
+
+    var hoverDot = document.createElementNS(svgNS, "circle");
+    hoverDot.setAttribute("r", 4);
+    hoverDot.setAttribute("class", "hover-dot");
+    hoverDot.style.display = "none";
+    svg.appendChild(hoverDot);
+
+    var hitRect = document.createElementNS(svgNS, "rect");
+    hitRect.setAttribute("x", padL); hitRect.setAttribute("y", padT);
+    hitRect.setAttribute("width", plotW); hitRect.setAttribute("height", plotH);
+    hitRect.setAttribute("fill", "transparent");
+    svg.appendChild(hitRect);
+
+    function pointerMove(evt) {
+      var rect = svg.getBoundingClientRect();
+      var relX = ((evt.clientX - rect.left) / rect.width) * W;
+      var idx = Math.round(((relX - padL) / plotW) * (byDay.length - 1));
+      idx = Math.max(0, Math.min(byDay.length - 1, idx));
+      var d = byDay[idx];
+      var cx = x(idx), cy = y(d.count);
+      crosshair.setAttribute("x1", cx); crosshair.setAttribute("x2", cx);
+      crosshair.style.display = "";
+      hoverDot.setAttribute("cx", cx); hoverDot.setAttribute("cy", cy);
+      hoverDot.style.display = "";
+      showTooltip(evt.clientX, rect.top,
+        fmtDay(d.day) + "<br><span class='t-value'>" + d.count + "</span> requests");
+    }
+    svg.addEventListener("pointermove", pointerMove);
+    svg.addEventListener("pointerleave", function () {
+      crosshair.style.display = "none";
+      hoverDot.style.display = "none";
+      hideTooltip();
+    });
+    svg.addEventListener("focus", function () { pointerMove({ clientX: svg.getBoundingClientRect().left + plotW, clientY: 0 }); });
+
+    container.appendChild(svg);
+
+    // table twin
+    var table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = "<thead><tr><th>Day</th><th>Requests</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    byDay.slice().reverse().forEach(function (d) {
+      var tr = document.createElement("tr");
+      var tdDay = document.createElement("td"); tdDay.textContent = d.day;
+      var tdCount = document.createElement("td"); tdCount.className = "num"; tdCount.textContent = d.count;
+      tr.appendChild(tdDay); tr.appendChild(tdCount);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableEl.appendChild(table);
+  }
+
+  // ---- endpoint bar chart ----
+  function renderEndpoints(byEndpoint) {
+    var container = document.getElementById("endpointChart");
+    var tableEl = document.getElementById("endpointTable");
+    container.innerHTML = "";
+    tableEl.innerHTML = "";
+
+    if (!byEndpoint.length) {
+      container.innerHTML = '<div class="empty">No requests recorded yet</div>';
+      return;
+    }
+
+    var maxCount = Math.max.apply(null, byEndpoint.map(function (e) { return e.count; }));
+
+    byEndpoint.forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "bar-row";
+
+      var label = document.createElement("div");
+      label.className = "bar-label";
+      label.textContent = e.method + " " + e.path;
+      label.title = e.method + " " + e.path;
+
+      var track = document.createElement("div");
+      track.className = "bar-track";
+
+      var fill = document.createElement("div");
+      fill.className = "bar-fill";
+      var pct = Math.max((e.count / maxCount) * 100, 1.5);
+      fill.style.width = pct + "%";
+
+      var value = document.createElement("div");
+      value.className = "bar-value";
+      value.textContent = e.count;
+
+      track.appendChild(fill);
+      track.appendChild(value);
+      row.appendChild(label);
+      row.appendChild(track);
+
+      row.addEventListener("pointerenter", function (evt) {
+        var r = row.getBoundingClientRect();
+        showTooltip(evt.clientX, r.top,
+          "<span class='t-value'>" + e.count + "</span> requests<br>" +
+          "avg " + fmtMs(e.avg_ms) + " · " + e.errors + " errors");
+      });
+      row.addEventListener("pointermove", function (evt) {
+        var r = row.getBoundingClientRect();
+        tooltip.style.left = evt.clientX + "px";
+        tooltip.style.top = r.top + "px";
+      });
+      row.addEventListener("pointerleave", hideTooltip);
+
+      container.appendChild(row);
+    });
+
+    var table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = "<thead><tr><th>Endpoint</th><th>Requests</th><th>Avg time</th><th>Errors</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    byEndpoint.forEach(function (e) {
+      var tr = document.createElement("tr");
+      var tdEp = document.createElement("td"); tdEp.textContent = e.method + " " + e.path;
+      var tdCount = document.createElement("td"); tdCount.className = "num"; tdCount.textContent = e.count;
+      var tdAvg = document.createElement("td"); tdAvg.className = "num"; tdAvg.textContent = fmtMs(e.avg_ms);
+      var tdErr = document.createElement("td"); tdErr.className = "num"; tdErr.textContent = e.errors;
+      tr.appendChild(tdEp); tr.appendChild(tdCount); tr.appendChild(tdAvg); tr.appendChild(tdErr);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableEl.appendChild(table);
+  }
+
+  // ---- status breakdown ----
+  function renderStatus(byStatus) {
+    var container = document.getElementById("statusChart");
+    var tableEl = document.getElementById("statusTable");
+    container.innerHTML = "";
+    tableEl.innerHTML = "";
+
+    if (!byStatus.length) {
+      container.innerHTML = '<div class="empty">No requests recorded yet</div>';
+      return;
+    }
+
+    var groups = {};
+    var total = 0;
+    byStatus.forEach(function (s) {
+      var g = statusGroup(s.status_code);
+      groups[g.key] = groups[g.key] || { key: g.key, label: g.label, color: g.color, count: 0 };
+      groups[g.key].count += s.count;
+      total += s.count;
+    });
+
+    var order = ["2xx", "3xx", "4xx", "5xx"];
+    var wrap = document.createElement("div");
+    wrap.className = "status-rows";
+    order.forEach(function (key) {
+      var g = groups[key];
+      if (!g) return;
+      var pct = total ? (g.count / total) * 100 : 0;
+      var row = document.createElement("div");
+      row.className = "status-row";
+      row.innerHTML =
+        '<span class="status-swatch" style="background:' + g.color + '"></span>' +
+        '<div class="status-meta">' +
+        '<div class="top"><span>' + key + " " + g.label + '</span><span>' + g.count + " (" + pct.toFixed(0) + "%)</span></div>" +
+        '<div class="status-track"><div class="status-fill" style="width:' + pct + "%;background:" + g.color + '"></div></div>' +
+        "</div>";
+      wrap.appendChild(row);
+    });
+    container.appendChild(wrap);
+
+    var table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = "<thead><tr><th>Status code</th><th>Count</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    byStatus.forEach(function (s) {
+      var tr = document.createElement("tr");
+      var tdCode = document.createElement("td"); tdCode.textContent = s.status_code;
+      var tdCount = document.createElement("td"); tdCount.className = "num"; tdCount.textContent = s.count;
+      tr.appendChild(tdCode); tr.appendChild(tdCount);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableEl.appendChild(table);
+  }
+
+  // ---- recent requests table ----
+  function renderRecent(recent) {
+    var container = document.getElementById("recentTable");
+    container.innerHTML = "";
+    if (!recent.length) {
+      container.innerHTML = '<div class="empty">No requests recorded yet</div>';
+      return;
+    }
+    var table = document.createElement("table");
+    table.className = "data-table";
+    table.innerHTML = "<thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>";
+    var tbody = document.createElement("tbody");
+    recent.forEach(function (r) {
+      var g = statusGroup(r.status_code);
+      var tr = document.createElement("tr");
+
+      var tdTime = document.createElement("td"); tdTime.textContent = fmtTime(r.timestamp);
+      var tdMethod = document.createElement("td"); tdMethod.textContent = r.method;
+      var tdPath = document.createElement("td"); tdPath.textContent = r.path;
+
+      var tdStatus = document.createElement("td");
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.style.borderColor = g.color;
+      badge.textContent = r.status_code;
+      tdStatus.appendChild(badge);
+
+      var tdDur = document.createElement("td"); tdDur.className = "num"; tdDur.textContent = fmtMs(r.duration_ms);
+
+      tr.appendChild(tdTime); tr.appendChild(tdMethod); tr.appendChild(tdPath); tr.appendChild(tdStatus); tr.appendChild(tdDur);
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  // ---- load ----
+  function load() {
+    var key = getApiKey();
+    if (!key) { openGate(); return; }
+
+    fetch("/stats/data", { headers: { "X-API-Key": key } })
+      .then(function (res) {
+        if (res.status === 401) {
+          throw { unauthorized: true };
+        }
+        if (!res.ok) throw new Error("Request failed: " + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        gate.hidden = true;
+        dashboard.hidden = false;
+        renderKpis(data);
+        renderTrend(data.by_day);
+        renderEndpoints(data.by_endpoint);
+        renderStatus(data.by_status);
+        renderRecent(data.recent);
+        if (!refreshTimer) refreshTimer = setInterval(load, REFRESH_MS);
+      })
+      .catch(function (err) {
+        if (err && err.unauthorized) {
+          localStorage.removeItem(STORAGE_KEY);
+          openGate("Invalid API key.");
+        } else {
+          openGate("Could not load stats. Check the server is reachable and try again.");
+        }
+      });
+  }
+
+  if (getApiKey()) { load(); } else { openGate(); }
+})();
+</script>
+</body>
+</html>

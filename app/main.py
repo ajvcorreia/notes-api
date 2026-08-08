@@ -1,22 +1,55 @@
 from __future__ import annotations
 
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
+from fastapi.responses import FileResponse
+from starlette.concurrency import run_in_threadpool
 
-from . import notes_service
+from . import notes_service, stats_service
 from .config import settings
 from .joplin_client import JoplinError, JoplinNotFound, joplin_client
-from .models import Note, NoteCreate, NoteSummary, NoteUpdate, Notebook, NotebookCreate
+from .models import (
+    Note,
+    NoteCreate,
+    NoteSummary,
+    NoteUpdate,
+    Notebook,
+    NotebookCreate,
+    StatsSummary,
+)
+
+_STATS_PAGE = Path(__file__).parent / "static" / "stats.html"
+_UNTRACKED_PATHS = {"/stats", "/stats/data", "/docs", "/redoc", "/openapi.json"}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    stats_service.init_db()
     yield
     await joplin_client.aclose()
 
 
 app = FastAPI(title="Joplin Notes API", version="1.0.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def track_usage(request: Request, call_next):
+    if request.url.path in _UNTRACKED_PATHS:
+        return await call_next(request)
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start) * 1000
+    await run_in_threadpool(
+        stats_service.record_request,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 async def require_api_key(x_api_key: str = Header(...)) -> None:
@@ -33,6 +66,16 @@ def _handle_joplin_error(exc: JoplinError):
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+@app.get("/stats", include_in_schema=False)
+async def stats_page() -> FileResponse:
+    return FileResponse(_STATS_PAGE)
+
+
+@app.get("/stats/data", response_model=StatsSummary, dependencies=[Depends(require_api_key)])
+async def stats_data() -> StatsSummary:
+    return await run_in_threadpool(stats_service.get_summary)
 
 
 @app.get("/notes", response_model=list[NoteSummary], dependencies=[Depends(require_api_key)])

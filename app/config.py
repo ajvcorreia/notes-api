@@ -11,5 +11,9 @@ class Settings(BaseSettings):
     # Clients call this API with `X-API-Key: <api_key>`.
     api_key: str
 
+    # SQLite file backing the /stats usage dashboard. Mount a volume over its
+    # parent directory to keep usage history across container restarts.
+    stats_db_path: str = "data/stats.db"
+
 
 settings = Settings()

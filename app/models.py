@@ -51,3 +51,40 @@ class Notebook(BaseModel):
 class NotebookCreate(BaseModel):
     title: str
     parent_id: str = ""
+
+
+class EndpointStats(BaseModel):
+    method: str
+    path: str
+    count: int
+    avg_ms: float
+    errors: int
+
+
+class StatusCodeStats(BaseModel):
+    status_code: int
+    count: int
+
+
+class DailyStats(BaseModel):
+    day: str
+    count: int
+
+
+class RecentRequest(BaseModel):
+    timestamp: float
+    method: str
+    path: str
+    status_code: int
+    duration_ms: float
+
+
+class StatsSummary(BaseModel):
+    total_requests: int
+    error_count: int
+    avg_duration_ms: float
+    today_count: int
+    by_endpoint: list[EndpointStats]
+    by_status: list[StatusCodeStats]
+    by_day: list[DailyStats]
+    recent: list[RecentRequest]
