@@ -124,6 +124,12 @@ itself needs no auth to load, but it calls `/stats/data` with the same
 `X-API-Key` as everything else - you'll be prompted for it once, and it's
 kept in the browser's local storage from then on.
 
+`GET /health` calls are recorded like any other request, but the dashboard's
+"Ignore health checks" toggle (on by default) excludes them so they don't
+drown out real traffic. It's passed through to the API as `/stats/data?exclude_health=true`;
+turn it off in the dashboard, or pass `exclude_health=false` yourself, to see
+everything.
+
 Request history is stored in a SQLite file (`STATS_DB_PATH`, default
 `data/stats.db`). `compose.yaml` mounts a `notes-api-data` volume over
 `/app/data` so this survives container restarts/upgrades; without a volume

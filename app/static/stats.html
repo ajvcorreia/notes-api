@@ -247,6 +247,7 @@
       <p id="subtitle">Live request stats for this API instance</p>
     </div>
     <div class="head-controls">
+      <button id="healthToggle" type="button" aria-pressed="true">Ignore health checks</button>
       <button id="tableToggle" type="button" aria-pressed="false">Table view</button>
       <button id="themeToggle" type="button">Dark mode</button>
       <button id="refreshBtn" type="button">Refresh</button>
@@ -318,6 +319,7 @@
 
   var STORAGE_KEY = "notes-api-key";
   var THEME_KEY = "notes-api-theme";
+  var IGNORE_HEALTH_KEY = "notes-api-ignore-health";
   var REFRESH_MS = 30000;
 
   var gate = document.getElementById("gate");
@@ -360,6 +362,20 @@
   tableToggle.addEventListener("click", function () {
     var on = document.body.classList.toggle("show-tables");
     tableToggle.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+
+  // ---- ignore health checks toggle (on by default) ----
+  var healthToggle = document.getElementById("healthToggle");
+  function ignoreHealthChecks() {
+    var stored = localStorage.getItem(IGNORE_HEALTH_KEY);
+    return stored === null ? true : stored === "true";
+  }
+  healthToggle.setAttribute("aria-pressed", ignoreHealthChecks() ? "true" : "false");
+  healthToggle.addEventListener("click", function () {
+    var next = !ignoreHealthChecks();
+    localStorage.setItem(IGNORE_HEALTH_KEY, String(next));
+    healthToggle.setAttribute("aria-pressed", next ? "true" : "false");
+    load();
   });
 
   // ---- api key gate ----
@@ -736,7 +752,7 @@
     var key = getApiKey();
     if (!key) { openGate(); return; }
 
-    fetch("/stats/data", { headers: { "X-API-Key": key } })
+    fetch("/stats/data?exclude_health=" + ignoreHealthChecks(), { headers: { "X-API-Key": key } })
       .then(function (res) {
         if (res.status === 401) {
           throw { unauthorized: true };

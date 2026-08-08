@@ -74,8 +74,8 @@ async def stats_page() -> FileResponse:
 
 
 @app.get("/stats/data", response_model=StatsSummary, dependencies=[Depends(require_api_key)])
-async def stats_data() -> StatsSummary:
-    return await run_in_threadpool(stats_service.get_summary)
+async def stats_data(exclude_health: bool = True) -> StatsSummary:
+    return await run_in_threadpool(stats_service.get_summary, exclude_health=exclude_health)
 
 
 @app.get("/notes", response_model=list[NoteSummary], dependencies=[Depends(require_api_key)])

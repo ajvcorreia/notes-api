@@ -49,24 +49,29 @@ def record_request(method: str, path: str, status_code: int, duration_ms: float)
         )
 
 
-def get_summary(days: int = 14, recent_limit: int = 50) -> dict:
+def get_summary(days: int = 14, recent_limit: int = 50, exclude_health: bool = True) -> dict:
     since = time.time() - days * 86400
+    health_filter = "WHERE path != '/health'" if exclude_health else ""
+    health_and = "AND path != '/health'" if exclude_health else ""
     with _connect() as conn:
-        total = conn.execute("SELECT COUNT(*) AS c FROM requests").fetchone()["c"]
+        total = conn.execute(f"SELECT COUNT(*) AS c FROM requests {health_filter}").fetchone()["c"]
         errors = conn.execute(
-            "SELECT COUNT(*) AS c FROM requests WHERE status_code >= 400"
+            f"SELECT COUNT(*) AS c FROM requests WHERE status_code >= 400 {health_and}"
         ).fetchone()["c"]
-        avg_ms = conn.execute("SELECT AVG(duration_ms) AS a FROM requests").fetchone()["a"] or 0.0
+        avg_ms = conn.execute(
+            f"SELECT AVG(duration_ms) AS a FROM requests {health_filter}"
+        ).fetchone()["a"] or 0.0
         today_start = time.time() - (time.time() % 86400)
         today_count = conn.execute(
-            "SELECT COUNT(*) AS c FROM requests WHERE timestamp >= ?", (today_start,)
+            f"SELECT COUNT(*) AS c FROM requests WHERE timestamp >= ? {health_and}", (today_start,)
         ).fetchone()["c"]
 
         by_endpoint = conn.execute(
-            """
+            f"""
             SELECT method, path, COUNT(*) AS count, AVG(duration_ms) AS avg_ms,
                    SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS errors
             FROM requests
+            {health_filter}
             GROUP BY method, path
             ORDER BY count DESC
             LIMIT 8
@@ -74,14 +79,15 @@ def get_summary(days: int = 14, recent_limit: int = 50) -> dict:
         ).fetchall()
 
         by_status = conn.execute(
-            "SELECT status_code, COUNT(*) AS count FROM requests GROUP BY status_code ORDER BY status_code"
+            f"SELECT status_code, COUNT(*) AS count FROM requests {health_filter} "
+            "GROUP BY status_code ORDER BY status_code"
         ).fetchall()
 
         by_day = conn.execute(
-            """
+            f"""
             SELECT date(timestamp, 'unixepoch') AS day, COUNT(*) AS count
             FROM requests
-            WHERE timestamp >= ?
+            WHERE timestamp >= ? {health_and}
             GROUP BY day
             ORDER BY day ASC
             """,
@@ -89,8 +95,8 @@ def get_summary(days: int = 14, recent_limit: int = 50) -> dict:
         ).fetchall()
 
         recent = conn.execute(
-            "SELECT timestamp, method, path, status_code, duration_ms FROM requests "
-            "ORDER BY id DESC LIMIT ?",
+            f"SELECT timestamp, method, path, status_code, duration_ms FROM requests "
+            f"{health_filter} ORDER BY id DESC LIMIT ?",
             (recent_limit,),
         ).fetchall()
 
