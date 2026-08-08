@@ -130,6 +130,10 @@ drown out real traffic. It's passed through to the API as `/stats/data?exclude_h
 turn it off in the dashboard, or pass `exclude_health=false` yourself, to see
 everything.
 
+The dashboard auto-refreshes every 30 seconds by default; use the interval
+dropdown next to the refresh button to change it (10s/30s/1m/5m) or turn
+auto-refresh off. The choice is kept in the browser's local storage.
+
 Request history is stored in a SQLite file (`STATS_DB_PATH`, default
 `data/stats.db`). `compose.yaml` mounts a `notes-api-data` volume over
 `/app/data` so this survives container restarts/upgrades; without a volume

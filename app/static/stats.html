@@ -89,6 +89,17 @@
   button:hover { background: var(--gridline); }
   button[aria-pressed="true"] { background: var(--series-1); color: #fff; border-color: transparent; }
 
+  select#refreshInterval {
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+
   #gate {
     max-width: 380px;
     margin: 64px auto;
@@ -250,6 +261,13 @@
       <button id="healthToggle" type="button" aria-pressed="true">Ignore health checks</button>
       <button id="tableToggle" type="button" aria-pressed="false">Table view</button>
       <button id="themeToggle" type="button">Dark mode</button>
+      <select id="refreshInterval" aria-label="Auto-refresh interval">
+        <option value="0">Auto-refresh: off</option>
+        <option value="10000">Every 10s</option>
+        <option value="30000" selected>Every 30s</option>
+        <option value="60000">Every 1m</option>
+        <option value="300000">Every 5m</option>
+      </select>
       <button id="refreshBtn" type="button">Refresh</button>
     </div>
   </header>
@@ -320,7 +338,8 @@
   var STORAGE_KEY = "notes-api-key";
   var THEME_KEY = "notes-api-theme";
   var IGNORE_HEALTH_KEY = "notes-api-ignore-health";
-  var REFRESH_MS = 30000;
+  var REFRESH_INTERVAL_KEY = "notes-api-refresh-interval";
+  var DEFAULT_REFRESH_MS = 30000;
 
   var gate = document.getElementById("gate");
   var gateForm = document.getElementById("gateForm");
@@ -393,10 +412,30 @@
 
   document.getElementById("refreshBtn").addEventListener("click", load);
 
+  // ---- auto-refresh interval ----
+  var refreshIntervalEl = document.getElementById("refreshInterval");
+  function getRefreshMs() {
+    var stored = localStorage.getItem(REFRESH_INTERVAL_KEY);
+    return stored === null ? DEFAULT_REFRESH_MS : parseInt(stored, 10);
+  }
+  refreshIntervalEl.value = String(getRefreshMs());
+  function clearRefreshTimer() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  }
+  function scheduleRefresh() {
+    clearRefreshTimer();
+    var ms = getRefreshMs();
+    if (ms > 0) refreshTimer = setInterval(load, ms);
+  }
+  refreshIntervalEl.addEventListener("change", function () {
+    localStorage.setItem(REFRESH_INTERVAL_KEY, this.value);
+    scheduleRefresh();
+  });
+
   function openGate(message) {
     gate.hidden = false;
     dashboard.hidden = true;
-    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    clearRefreshTimer();
     if (message) { gateError.textContent = message; gateError.hidden = false; }
   }
 
@@ -768,7 +807,7 @@
         renderEndpoints(data.by_endpoint);
         renderStatus(data.by_status);
         renderRecent(data.recent);
-        if (!refreshTimer) refreshTimer = setInterval(load, REFRESH_MS);
+        if (!refreshTimer) scheduleRefresh();
       })
       .catch(function (err) {
         if (err && err.unauthorized) {
