@@ -245,12 +245,12 @@ async def search_notes(
     limit: int | None = None,
     offset: int = 0,
 ) -> list[NoteSummary]:
-    """Full-text search over note titles/bodies, via Joplin Server's own
-    /api/search endpoint (which does the matching server-side) rather than
-    walking every item like list_notes() has to for exact-field filters.
-    Still fetches each matched item's content, same as list_notes(), since
-    Joplin's search results carry no title/type/parent_id of their own.
+    """Full-text search over note titles/bodies. Joplin Server has no search
+    endpoint of its own (only the desktop app's local Data API does), so
+    this walks every item the same way list_notes() does for exact-field
+    filters, and matches title/body client-side as each note is fetched.
     """
+    needle = query.casefold()
     target = None if limit is None else offset + limit
     semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
 
@@ -264,7 +264,7 @@ async def search_notes(
     matched: list[dict[str, str]] = []
     cursor: str | None = None
     while True:
-        page = await joplin_client.search(query, cursor=cursor)
+        page = await joplin_client.list_root_children(cursor=cursor)
         ids = [
             entry["name"][: -len(".md")]
             for entry in page["items"]
@@ -273,6 +273,11 @@ async def search_notes(
         results = await asyncio.gather(*(fetch(item_id) for item_id in ids))
         for fields in results:
             if fields is None or fields.get("type_") != str(TYPE_NOTE):
+                continue
+            if (
+                needle not in fields.get("title", "").casefold()
+                and needle not in fields.get("body", "").casefold()
+            ):
                 continue
             matched.append(fields)
 

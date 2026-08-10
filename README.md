@@ -30,7 +30,7 @@ instead of (or alongside) this.
 ## Features
 
 - CRUD for notes and notebooks (`/notes`, `/notebooks`)
-- Full-text search (`/search`), backed by Joplin Server's own search index
+- Substring search over note titles/bodies (`/search`)
 - File attachments: `POST /notes/{id}/attachments` uploads a file as a
   Joplin resource and links it into the note body
 - Single `X-API-Key` header for auth
@@ -94,7 +94,7 @@ All routes except `/health` require `X-API-Key: <API_KEY>`.
 | Method | Path                      | Description                                      |
 |--------|---------------------------|---------------------------------------------------|
 | GET    | `/notes`                  | List notes, **without body** (`?parent_id=`, `?limit=`, `?offset=`) |
-| GET    | `/search`                  | Full-text search over notes, **without body** (`?q=`, `?limit=`, `?offset=`) |
+| GET    | `/search`                  | Case-insensitive substring search over title/body, **without body** (`?q=`, `?limit=`, `?offset=`) |
 | GET    | `/notes/{id}`              | Get one note, including body                       |
 | POST   | `/notes`                    | Create a note                                       |
 | PUT    | `/notes/{id}`              | Update a note (partial)                            |
@@ -159,13 +159,14 @@ Actions**:
 
 ## Limitations
 
-- **`GET /notes` is O(n) in your total note count without `limit`.** Joplin
-  Server has no metadata-only listing endpoint - every note's raw content
-  still has to be downloaded and parsed to know its title/type/parent_id.
-  Passing `limit` stops fetching further pages once enough matches are
-  found, which does cut latency for small limits; without it (or with a
-  restrictive `parent_id` matching few notes late in the list) it still
-  walks the whole library.
+- **`GET /notes` and `GET /search` are O(n) in your total note count without
+  `limit`.** Joplin Server has no metadata-only listing endpoint, and no
+  search endpoint at all (that's only in the desktop app's local Data API)
+  - every note's raw content still has to be downloaded and parsed, then for
+  `/search`, matched by plain substring against title/body. Passing `limit`
+  stops fetching further pages once enough matches are found, which does cut
+  latency for small limits; without it (or with a restrictive filter
+  matching few notes late in the list) it still walks the whole library.
 - **End-to-end encryption is not supported.** If any client syncing to
   this Joplin Server account enables E2EE, note bodies become encrypted
   blobs that `notes-api` cannot read or write without the encryption
