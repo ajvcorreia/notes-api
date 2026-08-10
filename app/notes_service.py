@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
+from . import item_cache
 from .joplin_client import JoplinNotFound, joplin_client
 from .models import Note, NoteCreate, NoteSummary, NoteUpdate, Notebook, NotebookCreate
 from .note_format import (
@@ -107,6 +108,7 @@ async def create_note(data: NoteCreate) -> Note:
     }
     content = serialize_item(data.title, data.body, props)
     await joplin_client.put_content(note_id, content)
+    item_cache.invalidate()
     return await get_note(note_id)
 
 
@@ -129,6 +131,7 @@ async def update_note(note_id: str, data: NoteUpdate) -> Note:
     props = {k: v for k, v in fields.items() if k not in ("title", "body")}
     content = serialize_item(title, body, props)
     await joplin_client.put_content(note_id, content)
+    item_cache.invalidate()
     return await get_note(note_id)
 
 
@@ -137,6 +140,7 @@ async def delete_note(note_id: str) -> None:
     if fields.get("type_") != str(TYPE_NOTE):
         raise JoplinNotFound(404, f"Item is not a note: {note_id}")
     await joplin_client.delete_item(note_id)
+    item_cache.invalidate()
 
 
 async def create_notebook(data: NotebookCreate) -> Notebook:
@@ -159,6 +163,7 @@ async def create_notebook(data: NotebookCreate) -> Notebook:
     }
     content = serialize_item(data.title, None, props)
     await joplin_client.put_content(notebook_id, content)
+    item_cache.invalidate()
     return await get_notebook(notebook_id)
 
 
@@ -167,21 +172,7 @@ async def delete_notebook(notebook_id: str) -> None:
     if fields.get("type_") != str(TYPE_FOLDER):
         raise JoplinNotFound(404, f"Item is not a notebook: {notebook_id}")
     await joplin_client.delete_item(notebook_id)
-
-
-async def _fetch_all_fields() -> list[dict[str, str]]:
-    ids = await joplin_client.list_all_item_names()
-    semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
-
-    async def fetch(item_id: str) -> dict[str, str] | None:
-        async with semaphore:
-            try:
-                return await _get_fields(item_id)
-            except JoplinNotFound:
-                return None
-
-    results = await asyncio.gather(*(fetch(item_id) for item_id in ids))
-    return [fields for fields in results if fields is not None]
+    item_cache.invalidate()
 
 
 async def list_notes(
@@ -247,45 +238,20 @@ async def search_notes(
 ) -> list[NoteSummary]:
     """Full-text search over note titles/bodies. Joplin Server has no search
     endpoint of its own (only the desktop app's local Data API does), so
-    this walks every item the same way list_notes() does for exact-field
-    filters, and matches title/body client-side as each note is fetched.
+    this matches against item_cache's cached, parsed snapshot of every item
+    rather than re-fetching and re-parsing the whole library on every call.
     """
     needle = query.casefold()
-    target = None if limit is None else offset + limit
-    semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
-
-    async def fetch(item_id: str) -> dict[str, str] | None:
-        async with semaphore:
-            try:
-                return await _get_fields(item_id)
-            except JoplinNotFound:
-                return None
-
-    matched: list[dict[str, str]] = []
-    cursor: str | None = None
-    while True:
-        page = await joplin_client.list_root_children(cursor=cursor)
-        ids = [
-            entry["name"][: -len(".md")]
-            for entry in page["items"]
-            if entry["name"].endswith(".md")
-        ]
-        results = await asyncio.gather(*(fetch(item_id) for item_id in ids))
-        for fields in results:
-            if fields is None or fields.get("type_") != str(TYPE_NOTE):
-                continue
-            if (
-                needle not in fields.get("title", "").casefold()
-                and needle not in fields.get("body", "").casefold()
-            ):
-                continue
-            matched.append(fields)
-
-        if target is not None and len(matched) >= target:
-            break
-        if not page.get("has_more"):
-            break
-        cursor = page.get("cursor")
+    all_fields = await item_cache.get_all_fields()
+    matched = [
+        fields
+        for fields in all_fields
+        if fields.get("type_") == str(TYPE_NOTE)
+        and (
+            needle in fields.get("title", "").casefold()
+            or needle in fields.get("body", "").casefold()
+        )
+    ]
 
     if limit is not None:
         matched = matched[offset : offset + limit]
@@ -339,11 +305,12 @@ async def attach_file(note_id: str, filename: str, mime: str, content: bytes) ->
     props = {k: v for k, v in fields.items() if k not in ("title", "body")}
     updated_content = serialize_item(title, body, props)
     await joplin_client.put_content(note_id, updated_content)
+    item_cache.invalidate()
     return await get_note(note_id)
 
 
 async def list_notebooks() -> list[Notebook]:
-    all_fields = await _fetch_all_fields()
+    all_fields = await item_cache.get_all_fields()
     return [
         _notebook_from_fields(fields)
         for fields in all_fields

@@ -8,7 +8,7 @@ from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Reques
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import notes_service, stats_service
+from . import item_cache, notes_service, stats_service
 from .config import settings
 from .joplin_client import JoplinError, JoplinNotFound, joplin_client
 from .models import (
@@ -29,6 +29,7 @@ _UNTRACKED_PATHS = {"/stats", "/stats/data", "/docs", "/redoc", "/openapi.json"}
 async def lifespan(app: FastAPI):
     stats_service.init_db()
     yield
+    item_cache.shutdown()
     await joplin_client.aclose()
 
 

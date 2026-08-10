@@ -159,14 +159,22 @@ Actions**:
 
 ## Limitations
 
-- **`GET /notes` and `GET /search` are O(n) in your total note count without
-  `limit`.** Joplin Server has no metadata-only listing endpoint, and no
-  search endpoint at all (that's only in the desktop app's local Data API)
-  - every note's raw content still has to be downloaded and parsed, then for
-  `/search`, matched by plain substring against title/body. Passing `limit`
-  stops fetching further pages once enough matches are found, which does cut
-  latency for small limits; without it (or with a restrictive filter
-  matching few notes late in the list) it still walks the whole library.
+- **`GET /notes` is O(n) in your total note count without `limit`.** Joplin
+  Server has no metadata-only listing endpoint - every note's raw content
+  still has to be downloaded and parsed to know its title/type/parent_id.
+  Passing `limit` stops fetching further pages once enough matches are
+  found, which does cut latency for small limits; without it (or with a
+  restrictive `parent_id` matching few notes late in the list) it still
+  walks the whole library.
+- **`GET /search` and `GET /notebooks` are backed by an in-memory cache**
+  (`app/item_cache.py`), since Joplin Server has no search endpoint at all
+  (that's only in the desktop app's local Data API) and no metadata-only
+  listing either - both need every item's content. The cache fetches all
+  items concurrently and parses them across a process pool (so parsing
+  isn't serialized on one core), then reuses that snapshot for
+  `ITEM_CACHE_TTL_SECONDS` (default 30s). Writes made through this API
+  invalidate it immediately; edits from other Joplin clients (or another
+  instance of this API) are only picked up once the TTL expires.
 - **End-to-end encryption is not supported.** If any client syncing to
   this Joplin Server account enables E2EE, note bodies become encrypted
   blobs that `notes-api` cannot read or write without the encryption

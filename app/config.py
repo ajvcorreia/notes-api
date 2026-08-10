@@ -15,5 +15,11 @@ class Settings(BaseSettings):
     # parent directory to keep usage history across container restarts.
     stats_db_path: str = "data/stats.db"
 
+    # How long the in-memory item cache (used by /search and /notebooks) is
+    # reused before re-fetching from Joplin Server. Writes made through this
+    # API invalidate it immediately; writes from other Joplin clients (or a
+    # second instance of this API) are only picked up once this expires.
+    item_cache_ttl_seconds: float = 30.0
+
 
 settings = Settings()
