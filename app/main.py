@@ -90,6 +90,18 @@ async def list_notes(
         _handle_joplin_error(exc)
 
 
+@app.get("/search", response_model=list[NoteSummary], dependencies=[Depends(require_api_key)])
+async def search_notes(
+    q: str = Query(..., min_length=1),
+    limit: int | None = Query(None, ge=1),
+    offset: int = Query(0, ge=0),
+) -> list[NoteSummary]:
+    try:
+        return await notes_service.search_notes(query=q, limit=limit, offset=offset)
+    except JoplinError as exc:
+        _handle_joplin_error(exc)
+
+
 @app.get("/notes/{note_id}", response_model=Note, dependencies=[Depends(require_api_key)])
 async def get_note(note_id: str) -> Note:
     try:

@@ -30,6 +30,7 @@ instead of (or alongside) this.
 ## Features
 
 - CRUD for notes and notebooks (`/notes`, `/notebooks`)
+- Full-text search (`/search`), backed by Joplin Server's own search index
 - File attachments: `POST /notes/{id}/attachments` uploads a file as a
   Joplin resource and links it into the note body
 - Single `X-API-Key` header for auth
@@ -93,6 +94,7 @@ All routes except `/health` require `X-API-Key: <API_KEY>`.
 | Method | Path                      | Description                                      |
 |--------|---------------------------|---------------------------------------------------|
 | GET    | `/notes`                  | List notes, **without body** (`?parent_id=`, `?limit=`, `?offset=`) |
+| GET    | `/search`                  | Full-text search over notes, **without body** (`?q=`, `?limit=`, `?offset=`) |
 | GET    | `/notes/{id}`              | Get one note, including body                       |
 | POST   | `/notes`                    | Create a note                                       |
 | PUT    | `/notes/{id}`              | Update a note (partial)                            |

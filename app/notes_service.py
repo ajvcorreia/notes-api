@@ -240,6 +240,55 @@ async def list_notes(
     return [_note_summary_from_fields(fields) for fields in matched]
 
 
+async def search_notes(
+    query: str,
+    limit: int | None = None,
+    offset: int = 0,
+) -> list[NoteSummary]:
+    """Full-text search over note titles/bodies, via Joplin Server's own
+    /api/search endpoint (which does the matching server-side) rather than
+    walking every item like list_notes() has to for exact-field filters.
+    Still fetches each matched item's content, same as list_notes(), since
+    Joplin's search results carry no title/type/parent_id of their own.
+    """
+    target = None if limit is None else offset + limit
+    semaphore = asyncio.Semaphore(_FETCH_CONCURRENCY)
+
+    async def fetch(item_id: str) -> dict[str, str] | None:
+        async with semaphore:
+            try:
+                return await _get_fields(item_id)
+            except JoplinNotFound:
+                return None
+
+    matched: list[dict[str, str]] = []
+    cursor: str | None = None
+    while True:
+        page = await joplin_client.search(query, cursor=cursor)
+        ids = [
+            entry["name"][: -len(".md")]
+            for entry in page["items"]
+            if entry["name"].endswith(".md")
+        ]
+        results = await asyncio.gather(*(fetch(item_id) for item_id in ids))
+        for fields in results:
+            if fields is None or fields.get("type_") != str(TYPE_NOTE):
+                continue
+            matched.append(fields)
+
+        if target is not None and len(matched) >= target:
+            break
+        if not page.get("has_more"):
+            break
+        cursor = page.get("cursor")
+
+    if limit is not None:
+        matched = matched[offset : offset + limit]
+    elif offset:
+        matched = matched[offset:]
+    return [_note_summary_from_fields(fields) for fields in matched]
+
+
 async def attach_file(note_id: str, filename: str, mime: str, content: bytes) -> Note:
     """Uploads `content` as a Joplin resource and appends it to the note's body."""
     fields = await _get_fields(note_id)

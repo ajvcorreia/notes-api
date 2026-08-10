@@ -107,6 +107,15 @@ class JoplinClient:
             raise JoplinError(resp.status_code, resp.text)
         return resp.json()
 
+    async def search(self, query: str, cursor: str | None = None, limit: int = 100) -> dict:
+        params = {"query": query, "limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+        resp = await self._request("GET", "/api/search", params=params)
+        if resp.status_code != 200:
+            raise JoplinError(resp.status_code, resp.text)
+        return resp.json()
+
     async def list_all_item_names(self) -> list[str]:
         """Returns the 32-char ids of every item (note or folder) on the server."""
         ids: list[str] = []
